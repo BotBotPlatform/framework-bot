@@ -18,7 +18,7 @@ var pool      =    mysql.createPool({
     database : process.env.DB_DATABASE,
     user     : process.env.DB_USER,
     password : process.env.DB_PASSWORD,
-    debug    :  true
+    debug    :  false
 });
 
 connection.connect(function(err) {

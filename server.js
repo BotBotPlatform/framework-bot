@@ -3,7 +3,8 @@ module.exports.basePath = __filename;
 
 var app = express();
 var handleQuery = require('./database.js').handleQuery;
-
+var morgan = require('morgan')
+app.use(morgan('dev'));
 
 //Check for port
 var portNumber = process.argv[2];
