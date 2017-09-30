@@ -1,7 +1,9 @@
 var mysql = require('mysql');
 var basePath = require('./server.js').basePath;
-require('dotenv').config({path: basePath+"/../.env"});
-console.log(basePath);
+var path = require('path');
+
+var envPath = path.normalize(basePath+"/../.env");
+require('dotenv').config({path: envPath});
 
 var connection = mysql.createConnection({
   host     : process.env.DB_HOST,
