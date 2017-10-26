@@ -57,15 +57,15 @@ function feedbackPrompt(sid) {
           buttons: [{
             type: "postback",
             title: "Customer Service",
-            payload: "DEVELOPER_DEFINED_PAYLOAD"
+            payload: "feedback-customer-service"
           },{
             type: "postback",
             title: "Store Experience",
-            payload: "DEVELOPER_DEFINED_PAYLOAD"
+            payload: "feedback-store-experience"
           },{
             type: "postback",
             title: "Shipping",
-            payload: "DEVELOPER_DEFINED_PAYLOAD"
+            payload: "feedback-shipping"
           }]
         }
       }
@@ -78,13 +78,16 @@ function feedbackPrompt(sid) {
 /**
   * Handle and direct messages
   * TODO: Setup other message handling features
+  * TODO: Configure delivery messages for feedback
   */
 function messageHandler(msg) {
   if (!msg.delivery) {
     if (msg.message.text == 'feedback') {
       feedbackPrompt(msg.sender.id);
     }
-  }  
+  } else {
+
+  }
 }
 
 /**
