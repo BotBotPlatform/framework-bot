@@ -38,7 +38,7 @@ app.post('/',(req,res) => {
           postbackHandler(entry.messaging[0])
         } else {
           // Send to message handler for bot
-          messageHandler(entry.messaging[0], pageAccessToken);
+          messageHandler(entry.messaging[0], process.argv[3]);
         }
       } else {
         console.log("Webhook received unknown event: ", entry);
