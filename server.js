@@ -29,6 +29,7 @@ app.post('/',(req,res) => {
   let body = req.body;
 
   if (body.object === 'page') {
+    console.log('Webhook received request: ' + JSON.stringify(body));
     body.entry.forEach(function(entry) {
       if (entry.messaging[0]) {
         if (entry.messaging[0].postback) {
