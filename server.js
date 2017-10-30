@@ -97,7 +97,9 @@ function feedbackPrompt(sid, token) {
 
       // Send message to user
       callSendAPI(messageData);
-  });
+  }).catch(function(error) {
+      console.log("Error: " + error);
+    });
 }
 
 /**
@@ -125,7 +127,9 @@ function sendFeedback(sid, category, feedback) {
         };
         callSendAPI(messageData);
       }
-    });
+    }).catch(function(error) {
+        console.log("Error: " + error);
+      });
 }
 
 /**
@@ -196,7 +200,7 @@ function callSendAPI(messageData) {
       console.error(response);
       console.error(error);
     }
-  });
+  })
 }
 
 /**
