@@ -217,7 +217,7 @@ function callBotAPI(endpoint, options = {}, token) {
 }
 
 function getPageAccessToken(token) {
-
+  console.log("Looking up page access token using jtw token: " + token);
   var headers = {
     'Authorization': 'Bearer ' + token
   };
@@ -243,5 +243,6 @@ function getPageAccessToken(token) {
   */
 var server = app.listen(process.argv[2] || 4000, function () {
   console.log("BotBot listening on port %s", server.address().port);
+  console.log("Arg Array: " + JSON.stringify(process.argv));
   getPageAccessToken(process.argv[3]);
 });
