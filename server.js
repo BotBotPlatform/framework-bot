@@ -55,7 +55,10 @@ app.post('/',(req,res) => {
   */
 function feedbackPrompt(sid, token) {
   // Feedback needs user token
-  if (!token) return;
+  if (!token) {
+    console.log("Missing token for feedback prompt")
+    return;
+  }
 
   // Butttons array to hold feedback categories
   var buttons = [];
@@ -65,6 +68,7 @@ function feedbackPrompt(sid, token) {
   }, token)
   .then((res) => JSON.parse(res))
     .then((json) => {
+      console.log("Got feedback categories from server, listing...");
       // Feedback categories, limited to first 3
       for (var f in json.feedback.slice(0,3)) {
         buttons = buttons.concat({
@@ -172,6 +176,8 @@ function postbackHandler(postback) {
   * Send messages using Bot
   */
 function callSendAPI(messageData) {
+  console.log("Sending message to fb server: " + JSON.stringify(messageData));
+
   request({
     uri: 'https://graph.facebook.com/v2.6/me/messages',
     qs: { access_token: process.env.PAGE_ACCESS_TOKEN },
@@ -197,6 +203,7 @@ function callSendAPI(messageData) {
   * Communicate with BotBot API
   */
 function callBotAPI(endpoint, options = {}, token) {
+  console.log("Sending message to master server: " + endpoint);
   const base_url = 'https://botbot.jakebrabec.me/api';
   options.uri = base_url + '/' + endpoint
 
