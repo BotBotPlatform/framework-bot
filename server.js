@@ -16,6 +16,8 @@ const feedbackTrigger = 'BBFeedback-';
 // To keep track of <UUID>:<CATEGORY ID> for active users
 var fbMap = {};
 
+let pageAccessToken = '';
+
 /**
   * Create server to run bot application (bodyParser helps
     parse responses from Messenger)
@@ -36,7 +38,7 @@ app.post('/',(req,res) => {
           postbackHandler(entry.messaging[0])
         } else {
           // Send to message handler for bot
-          messageHandler(entry.messaging[0]);
+          messageHandler(entry.messaging[0], process.argv[3]);
         }
       } else {
         console.log("Webhook received unknown event: ", entry);
@@ -127,14 +129,14 @@ function sendFeedback(sid, category, feedback) {
   * TODO: Setup other message handling features
   * TODO: Configure delivery messages for feedback
   */
-function messageHandler(msg) {
+function messageHandler(msg, token) {
   if (!msg.delivery) {
     if (fbMap[msg.sender.id]) {
       sendFeedback(msg.sender.id, fbMap[msg.sender.id], msg.message.text.toString());
       delete fbMap[msg.sender.id];
     }
     if (msg.message.text == 'feedback') {
-      feedbackPrompt(msg.sender.id, process.env.USER_TOKEN);
+      feedbackPrompt(msg.sender.id, token);
     }
   } else {
 
@@ -203,9 +205,30 @@ function callBotAPI(endpoint, options = {}, token) {
   return request(options);
 }
 
+function getPageAccessToken(token) {
+
+  var headers = {
+    'Authorization': 'Bearer ' + token
+  };
+
+  request({
+    uri: 'https://botbot.jakebrabec.me/api/user/token',
+    headers: headers,
+    method: 'GET'
+  }, function (error, response, body) {
+    body = JSON.parse(body)
+    if (body['facebook_token']) {
+      pageAccessToken = body['facebook_token'];
+      console.log('Page Access Token configured.');
+    }
+  });
+
+}
+
 /**
   * Start server
   */
 var server = app.listen(process.argv[2] || 4000, function () {
   console.log("BotBot listening on port %s", server.address().port);
+  getPageAccessToken(process.argv[3]);
 });
