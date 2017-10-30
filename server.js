@@ -38,7 +38,7 @@ app.post('/',(req,res) => {
           postbackHandler(entry.messaging[0])
         } else {
           // Send to message handler for bot
-          messageHandler(entry.messaging[0], process.argv[3]);
+          messageHandler(entry.messaging[0], pageAccessToken);
         }
       } else {
         console.log("Webhook received unknown event: ", entry);
@@ -220,6 +220,8 @@ function getPageAccessToken(token) {
     if (body['facebook_token']) {
       pageAccessToken = body['facebook_token'];
       console.log('Page Access Token configured.');
+    } else {
+      console.log('Page Access Token configuration failed');
     }
   });
 
