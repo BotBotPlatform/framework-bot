@@ -131,15 +131,18 @@ function sendFeedback(sid, category, feedback) {
   */
 function messageHandler(msg, token) {
   if (!msg.delivery) {
+    console.log("Handling message: " + msg);
     if (fbMap[msg.sender.id]) {
+      console.log("Sending feedback");
       sendFeedback(msg.sender.id, fbMap[msg.sender.id], msg.message.text.toString());
       delete fbMap[msg.sender.id];
     }
     if (msg.message.text == 'feedback') {
+      console.log("Sending feedback prompt...");
       feedbackPrompt(msg.sender.id, token);
     }
   } else {
-
+    console.log("Missing msg.delivery field");
   }
 }
 
@@ -150,6 +153,7 @@ function postbackHandler(postback) {
   let type = postback.postback.payload.toString();
 
   if (type.startsWith(feedbackTrigger)) {
+    console.log("Setting feedback cateogry");
     setFeedbackCategory(postback.sender.id, type.replace(feedbackTrigger, ''));
     var messageData = {
       recipient: {
