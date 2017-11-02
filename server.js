@@ -424,6 +424,26 @@ function callBotAPI(endpoint, options = {}, token) {
   return request(options);
 }
 
+function getPageAccessToken(token) {
+  var headers = {
+    'Authorization': 'Bearer ' + token
+  };
+
+  request({
+    uri: 'https://botbot.jakebrabec.me/api/user/token',
+    headers: headers,
+    method: 'GET'
+  }, function (error, response, body) {
+    body = JSON.parse(body)
+    if (body['facebook_token']) {
+      pageAccessToken = body['facebook_token'];
+      console.log('Page Access Token configured.');
+    } else {
+      console.log('Page Access Token configuration failed');
+    }
+  });
+}
+
 /**
   * Start server
   */
