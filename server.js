@@ -1,4 +1,4 @@
-module.exports.basePath = __filename;
+ module.exports.basePath = __filename;
 
 /**
   * Dependencies: dotenv, express, request, path,
@@ -13,10 +13,15 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 
 const feedbackTrigger = 'BBFeedback-';
+const appointmentTrigger = 'BBAppointment-';
 // To keep track of <UUID>:<CATEGORY ID> for active users
 var fbMap = {};
 
 let pageAccessToken = '';
+
+var appointmentStartTime = 0;
+var appointmentEndTime = 0;
+var appointmentMap = {};
 
 /**
   * Create server to run bot application (bodyParser helps
@@ -102,6 +107,200 @@ function feedbackPrompt(sid, token) {
     });
 }
 
+function getDateString(date) {
+  let mm = (date.getMonth() + 1).toString();
+  mm = mm.length < 2 ? '0' + mm : mm;
+
+  let dd = (date.getDate() + 1).toString();
+  dd = dd.length < 2 ? '0' + dd : dd;
+
+  let yyyy = date.getFullYear().toString();
+
+  return mm + '/' + dd + '/' + yyyy + ':';
+}
+
+function getFormatDateString(str) {
+  var monthNames = ["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+  ];
+
+  var day = str.substr(0, str.indexOf(':'));
+  var time = str.substr(str.indexOf(':')+1, str.length - 1);
+
+
+  var d = new Date(day);
+  d.setDate(d.getDate() - 1);
+  var t = parseInt(time.substr(0, time.indexOf(':')));
+  var pm = false;
+  pm = (t > 12) ? true : false;
+  t = (t > 12) ? (t-12) : t;
+
+  var dateString = monthNames[d.getMonth()] + ' ' + d.getDay() + ' at ' + t + (pm ? 'pm' : 'am');
+  
+  return dateString;
+}
+
+function calculateAppointmentIntervals(token, sid) {
+  var headers = {
+    'Authorization': 'Bearer ' + token
+  };
+
+  request({
+    uri: 'https://botbot.jakebrabec.me/api/appointment/hours',
+    headers: headers,
+    method: 'GET'
+  }, function (error, response, body) {
+    body = JSON.parse(body);
+    appointmentStartTime = body['min_hour'];
+    appointmentEndTime = body['max_hour'];
+    let i = (appointmentEndTime - appointmentStartTime)/3;
+    var d = getDateString(new Date());
+
+    getAppointmentTimes(d, i, token, sid);
+  });
+}
+
+function getAppointmentTimes(date, interval, token, sid) {
+  checkAppointmentTime(0,date,Math.round(appointmentStartTime + (interval/2)),token,sid);
+  checkAppointmentTime(1,date,Math.round(appointmentStartTime + ((appointmentEndTime-appointmentStartTime)/2)),token,sid);
+  checkAppointmentTime(2,date,Math.round(appointmentEndTime - (interval/2)),token,sid);
+}
+
+function bookAppointment(date, sid, token) {
+  var headers = {
+    'Authorization': 'Bearer ' + token
+  };
+
+  request({
+    uri: 'https://botbot.jakebrabec.me/api/appointment',
+    headers: headers,
+    method: 'POST',
+    form: {timestamp: date}
+  }, function (error, response, body) {
+    body = JSON.parse(body);
+    if (body['message'] == 'success') {
+      var messageData = {
+      recipient: {
+        id: sid
+      },
+      message: {
+        text: 'Your appointment is scheduled!'
+      }
+    };
+    callSendAPI(messageData);
+    }
+    
+  });
+}
+
+function checkAppointmentTime(p, d, t, token, sid) {
+  let tt = t;
+  let ttt;
+  if ((p == 0) || (p == 1)) {
+    ttt = t + 1;
+  } else {
+    ttt = t - 1;
+  }
+  
+  tt = tt.length < 2 ? '0' + tt : tt;
+  ttt = ttt.length < 2 ? '0' + ttt : ttt;
+
+  let date = d + tt + ':00';
+  let sDate = d + ttt + ':00';
+  var taken = false;
+  var sTaken = false;
+
+  var headers = {
+    'Authorization': 'Bearer ' + token
+  };
+
+  request({
+    uri: 'https://botbot.jakebrabec.me/api/appointment',
+    headers: headers,
+    method: 'GET'
+  }, function (error, response, body) {
+    body = JSON.parse(body);
+    if (body['message'] == 'success') {
+      apps = body['appointments'];
+      for (var i in apps) {
+        var c = new Date(apps[i]['timestamp']);
+        c.setDate(c.getDate() - 1);
+        var compare = getDateString(c) + c.getHours() + ':00';
+        if (compare == date) taken = true;
+        if (compare == sDate) sTaken = true;
+      }
+      var arr = appointmentMap[sid];
+      if (!arr) arr = [];
+
+      if (!taken) {
+        arr[p] = date;
+        appointmentMap[sid] = arr;
+      } else if (!sTaken) {
+        arr[p] = sDate;
+        appointmentMap[sid] = arr;
+      } else {
+        var newDate = new Date(d.substring(0, d.length -1));
+        checkAppointmentTime(p, getDateString(newDate), t, token, sid);
+      }
+
+    }
+  });
+
+  
+}
+
+/**
+  * Initiate reservation prompt
+  */
+function reservationPrompt(sid, token) {
+  // Reservations needs user token
+  if (!token) {
+    console.log("Missing token for reservation prompt")
+    return;
+  }
+
+  calculateAppointmentIntervals(token, sid);
+
+  setTimeout(function(){ 
+    if (appointmentMap[sid]) {
+      var buttons = [];
+      var a = appointmentMap[sid];
+      for (var f in a) {
+        var title = getFormatDateString(a[f]);
+        buttons = buttons.concat({
+          type: 'postback',
+          title: title,
+          payload: appointmentTrigger + a[f]
+        });
+      }
+
+      // Message structure for FB
+      var messageData = {
+        recipient: {
+          id: sid
+        },
+        message: {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "button",
+              text: "What appointment time works for you?",
+              buttons: buttons
+            }
+          }
+        }
+      };
+
+      // Send message to user
+      callSendAPI(messageData);
+    }
+
+    
+  }, 2000);
+
+
+}
+
 /**
   * Sets <UUID>:<CATEGORY ID> in feedback map
   */
@@ -134,20 +333,19 @@ function sendFeedback(sid, category, feedback) {
 
 /**
   * Handle and direct messages
-  * TODO: Setup other message handling features
-  * TODO: Configure delivery messages for feedback
   */
 function messageHandler(msg, token) {
   if (!msg.delivery) {
     console.log("Handling message: " + msg);
     if (fbMap[msg.sender.id]) {
-      console.log("Sending feedback");
       sendFeedback(msg.sender.id, fbMap[msg.sender.id], msg.message.text.toString());
       delete fbMap[msg.sender.id];
     }
     if (msg.message.text == 'feedback') {
-      console.log("Sending feedback prompt...");
       feedbackPrompt(msg.sender.id, token);
+    }
+    if (msg.message.text == 'reservation') {
+      reservationPrompt(msg.sender.id, token);
     }
   } else {
     console.log("Missing msg.delivery field");
@@ -172,6 +370,12 @@ function postbackHandler(postback) {
       }
     };
     callSendAPI(messageData);
+  }
+
+  if (type.startsWith(appointmentTrigger)) {
+    console.log("Setting appointment");
+    bookAppointment(type.replace(appointmentTrigger, ''), postback.sender.id, process.argv[3]);
+    
   }
 
 }
@@ -218,28 +422,6 @@ function callBotAPI(endpoint, options = {}, token) {
   }
 
   return request(options);
-}
-
-function getPageAccessToken(token) {
-  console.log("Looking up page access token using jtw token: " + token);
-  var headers = {
-    'Authorization': 'Bearer ' + token
-  };
-
-  request({
-    uri: 'https://botbot.jakebrabec.me/api/user/token',
-    headers: headers,
-    method: 'GET'
-  }, function (error, response, body) {
-    body = JSON.parse(body)
-    if (body['facebook_token']) {
-      pageAccessToken = body['facebook_token'];
-      console.log('Page Access Token configured.');
-    } else {
-      console.log('Page Access Token configuration failed');
-    }
-  });
-
 }
 
 /**
