@@ -335,21 +335,29 @@ function sendFeedback(sid, category, feedback) {
   * Handle and direct messages
   */
 function messageHandler(msg, token) {
-  if (!msg.delivery) {
-    console.log("Handling message: " + msg);
-    if (fbMap[msg.sender.id]) {
-      sendFeedback(msg.sender.id, fbMap[msg.sender.id], msg.message.text.toString());
-      delete fbMap[msg.sender.id];
+  callBotAPI('bot', {
+    method: 'GET'
+  }, token)
+  .then((res) => JSON.parse(res))
+    .then((json) => {
+      if (!msg.delivery) {
+      console.log("Handling message: " + msg);
+      if (fbMap[msg.sender.id]) {
+        sendFeedback(msg.sender.id, fbMap[msg.sender.id], msg.message.text.toString());
+        delete fbMap[msg.sender.id];
+      }
+      if ((msg.message.text == 'feedback') && json.bot['feedback_enabled']) {
+        feedbackPrompt(msg.sender.id, token);
+      }
+      if ((msg.message.text == 'reservation') && json.bot['reservations_enabled']) {
+        reservationPrompt(msg.sender.id, token);
+      }
+    } else {
+      console.log("Missing msg.delivery field");
     }
-    if (msg.message.text == 'feedback') {
-      feedbackPrompt(msg.sender.id, token);
-    }
-    if (msg.message.text == 'reservation') {
-      reservationPrompt(msg.sender.id, token);
-    }
-  } else {
-    console.log("Missing msg.delivery field");
-  }
+
+    });
+  
 }
 
 /**
