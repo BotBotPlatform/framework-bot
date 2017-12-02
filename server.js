@@ -120,7 +120,7 @@ function inventoryPrompt(sid, token) {
     .then((json) => {
       console.log(json);
 
-      let inventory = json.slice(0,5);
+      let inventory = json.slice(0,10);
       let elementArr = [];
 
       for (var i in inventory) {
@@ -130,7 +130,7 @@ function inventoryPrompt(sid, token) {
           subtitle: "$" + inventory[i]["price"],
           default_action: {
             type: "web_url",
-            url: "http://etsy.com"
+            url: inventory[i]["url"]
           }
         }
 
