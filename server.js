@@ -107,6 +107,57 @@ function feedbackPrompt(sid, token) {
     });
 }
 
+/**
+  * Inventory prompt
+  */
+function inventoryPrompt(sid, token) {
+  console.log("at the prompt");
+
+  callBotAPI('shop/getItems', {
+    method: 'GET'
+  }, token)
+  .then((res) => JSON.parse(res))
+    .then((json) => {
+      console.log(json);
+
+      let inventory = json.slice(0,5);
+      let elementArr = [];
+
+      for (var i in inventory) {
+        var e = {
+          title: inventory[i]["title"],
+          image_url: inventory[i]["img"],
+          subtitle: "$" + inventory[i]["price"],
+          default_action: {
+            type: "web_url",
+            url: "http://etsy.com"
+          }
+        }
+
+        elementArr.push(e);
+      }
+
+      var messageData = {
+        recipient: {
+          id: sid
+        },
+        message: {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "generic",
+              elements: elementArr
+            }
+          }
+        }
+      };
+      // Send message to user
+      callSendAPI(messageData);
+
+    });
+
+}
+
 function getDateString(date) {
   let mm = (date.getMonth() + 1).toString();
   mm = mm.length < 2 ? '0' + mm : mm;
@@ -293,7 +344,6 @@ function reservationPrompt(sid, token) {
           }
         }
       };
-
       // Send message to user
       callSendAPI(messageData);
     }
@@ -343,6 +393,7 @@ function messageHandler(msg, token) {
   }, token)
   .then((res) => JSON.parse(res))
     .then((json) => {
+      console.log(json.bot);
       if (!msg.delivery) {
       console.log("Handling message: " + msg);
       if (fbMap[msg.sender.id]) {
@@ -354,6 +405,10 @@ function messageHandler(msg, token) {
       }
       if ((msg.message.text == 'reservation') && json.bot['reservations_enabled']) {
         reservationPrompt(msg.sender.id, token);
+      }
+      if ((msg.message.text == 'inventory') && json.bot['shopify_enabled']) {
+        console.log("here");
+        inventoryPrompt(msg.sender.id, token);
       }
     } else {
       console.log("Missing msg.delivery field");
