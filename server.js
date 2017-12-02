@@ -127,15 +127,18 @@ function getFormatDateString(str) {
   var day = str.substr(0, str.indexOf(':'));
   var time = str.substr(str.indexOf(':')+1, str.length - 1);
 
+  var m = day.substring(0, day.indexOf("/"));
+  day = day.substring(day.indexOf("/") + 1, day.length);
+  var d = day.substring(0, day.indexOf("/"));
+  day = day.substring(day.indexOf("/") + 1, day.length);
+  var y = day;
 
-  var d = new Date(day);
-  d.setDate(d.getDate() - 1);
   var t = parseInt(time.substr(0, time.indexOf(':')));
   var pm = false;
   pm = (t > 12) ? true : false;
   t = (t > 12) ? (t-12) : t;
 
-  var dateString = monthNames[d.getMonth()] + ' ' + d.getDay() + ' at ' + t + (pm ? 'pm' : 'am');
+  var dateString = monthNames[m-1] + ' ' + d + ' at ' + t + (pm ? 'pm' : 'am');
   
   return dateString;
 }
