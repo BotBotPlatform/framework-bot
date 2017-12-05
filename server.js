@@ -17,7 +17,7 @@ const appointmentTrigger = 'BBAppointment-';
 // To keep track of <UUID>:<CATEGORY ID> for active users
 var fbMap = {};
 // To keep track of active support users
-var supportUsers = [];
+var supportUsers = {};
 
 let pageAccessToken = '';
 
@@ -162,7 +162,7 @@ function inventoryPrompt(sid, token) {
   */
 function supportPrompt(sid, token) {
 
-  supportUsers.push(sid);
+  getUserName(sid);
 
   // Message structure for FB
   var messageData = {
@@ -399,19 +399,14 @@ function sendFeedback(sid, category, feedback) {
 }
 
 function sendSupport(sid, support, token) {
+  var name = supportUsers[sid];
   callBotAPI('tickets', {
     method: 'POST',
-    form: {message: support}
+    form: {message: support, messenger_userid: sid, name: name}
   }, token)
   .then((res) => JSON.parse(res))
     .then((json) => {
       if (json.message === 'success') {
-
-        //Remove from supportUsers array
-        if (supportUsers[sid]) {
-          supportUsers.splice(supportUsers.indexOf(sid),1);
-        }
-
         var messageData = {
           recipient: {
             id: sid
@@ -442,7 +437,7 @@ function messageHandler(msg, token) {
         sendFeedback(msg.sender.id, fbMap[msg.sender.id], msg.message.text.toString());
         delete fbMap[msg.sender.id];
       }
-      if (supportUsers.indexOf(msg.sender.id) > -1) {
+      if (supportUsers[msg.sender.id]) {
         sendSupport(msg.sender.id, msg.message.text.toString(), token);
         delete supportUsers[msg.sender.id];
       }
@@ -507,7 +502,6 @@ function callSendAPI(messageData) {
     qs: { access_token: pageAccessToken },
     method: 'POST',
     json: messageData
-
   }, function (error, response, body) {
     if (!error && response.statusCode == 200) {
       var recipientId = body.recipient_id;
@@ -559,6 +553,43 @@ function getPageAccessToken(token) {
     }
   });
 }
+
+function getUserName(sid) {
+  request({
+    uri: 'https://graph.facebook.com/v2.6/' + sid + '?fields=first_name,last_name&access_token=' + pageAccessToken,
+    method: 'GET'
+  }, function (error, response, body) {
+    body = JSON.parse(body);
+    supportUsers[sid] = body.first_name + ' ' + body.last_name;
+  });
+}
+
+app.get('/', (req, res) => {
+  
+  /** UPDATE YOUR VERIFY TOKEN **/
+  const VERIFY_TOKEN = "i-slay-hey-i-slay-hey";
+  
+  // Parse params from the webhook verification request
+  let mode = req.query['hub.mode'];
+  let token = req.query['hub.verify_token'];
+  let challenge = req.query['hub.challenge'];
+    
+  // Check if a token and mode were sent
+  if (mode && token) {
+  
+    // Check the mode and token sent are correct
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      
+      // Respond with 200 OK and challenge token from the request
+      console.log('WEBHOOK_VERIFIED');
+      res.status(200).send(challenge);
+    
+    } else {
+      // Responds with '403 Forbidden' if verify tokens do not match
+      res.sendStatus(403);      
+    }
+  }
+});
 
 /**
   * Start server
