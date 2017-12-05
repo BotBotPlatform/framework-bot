@@ -16,6 +16,8 @@ const feedbackTrigger = 'BBFeedback-';
 const appointmentTrigger = 'BBAppointment-';
 // To keep track of <UUID>:<CATEGORY ID> for active users
 var fbMap = {};
+// To keep track of active support users
+var supportUsers = [];
 
 let pageAccessToken = '';
 
@@ -111,15 +113,12 @@ function feedbackPrompt(sid, token) {
   * Inventory prompt
   */
 function inventoryPrompt(sid, token) {
-  console.log("at the prompt");
 
   callBotAPI('shop/getItems', {
     method: 'GET'
   }, token)
   .then((res) => JSON.parse(res))
     .then((json) => {
-      console.log(json);
-
       let inventory = json.slice(0,10);
       let elementArr = [];
 
@@ -156,6 +155,27 @@ function inventoryPrompt(sid, token) {
 
     });
 
+}
+
+/**
+  * Support prompt
+  */
+function supportPrompt(sid, token) {
+
+  supportUsers.push(sid);
+
+  // Message structure for FB
+  var messageData = {
+    recipient: {
+      id: sid
+    },
+    message: {
+      text: "What is your support regarding?"
+    }
+  };
+
+  // Send message to user
+  callSendAPI(messageData);
 }
 
 function getDateString(date) {
@@ -298,9 +318,7 @@ function checkAppointmentTime(p, d, t, token, sid) {
       }
 
     }
-  });
-
-  
+  }); 
 }
 
 /**
@@ -346,12 +364,8 @@ function reservationPrompt(sid, token) {
       };
       // Send message to user
       callSendAPI(messageData);
-    }
-
-    
+    }    
   }, 2000);
-
-
 }
 
 /**
@@ -384,6 +398,35 @@ function sendFeedback(sid, category, feedback) {
       });
 }
 
+function sendSupport(sid, support, token) {
+  callBotAPI('tickets', {
+    method: 'POST',
+    form: {message: support}
+  }, token)
+  .then((res) => JSON.parse(res))
+    .then((json) => {
+      if (json.message === 'success') {
+
+        //Remove from supportUsers array
+        if (supportUsers[sid]) {
+          supportUsers.splice(supportUsers.indexOf(sid),1);
+        }
+
+        var messageData = {
+          recipient: {
+            id: sid
+          },
+          message: {
+            text: 'A support agent will be with you shortly!'
+          }
+        };
+        callSendAPI(messageData);
+      }
+    }).catch(function(error) {
+        console.log("Error: " + error);
+      });
+}
+
 /**
   * Handle and direct messages
   */
@@ -393,12 +436,15 @@ function messageHandler(msg, token) {
   }, token)
   .then((res) => JSON.parse(res))
     .then((json) => {
-      console.log(json.bot);
       if (!msg.delivery) {
       console.log("Handling message: " + msg);
       if (fbMap[msg.sender.id]) {
         sendFeedback(msg.sender.id, fbMap[msg.sender.id], msg.message.text.toString());
         delete fbMap[msg.sender.id];
+      }
+      if (supportUsers.indexOf(msg.sender.id) > -1) {
+        sendSupport(msg.sender.id, msg.message.text.toString(), token);
+        delete supportUsers[msg.sender.id];
       }
       if ((msg.message.text == 'feedback') && json.bot['feedback_enabled']) {
         feedbackPrompt(msg.sender.id, token);
@@ -407,8 +453,10 @@ function messageHandler(msg, token) {
         reservationPrompt(msg.sender.id, token);
       }
       if ((msg.message.text == 'inventory') && json.bot['shopify_enabled']) {
-        console.log("here");
         inventoryPrompt(msg.sender.id, token);
+      }
+      if ((msg.message.text == 'support') && json.bot['customer_support_enabled']) {
+        supportPrompt(msg.sender.id, token);
       }
     } else {
       console.log("Missing msg.delivery field");
@@ -443,6 +491,8 @@ function postbackHandler(postback) {
     bookAppointment(type.replace(appointmentTrigger, ''), postback.sender.id, process.argv[3]);
     
   }
+
+
 
 }
 
